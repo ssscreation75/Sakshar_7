@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="theme-color" content="#081225">
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icon.svg" type="image/svg+xml">
+<title>ChemLab AI v2</title>
+<style>
+*{box-sizing:border-box}body{margin:0;background:#07101d;color:#edf4ff;font-family:Arial,sans-serif}
+header{padding:20px 15px;background:linear-gradient(135deg,#12244a,#081225);text-align:center}
+h1{margin:0;font-size:29px}h2{margin-top:0}.small{font-size:12px;color:#9fb0ca}
+nav{display:flex;gap:7px;padding:10px;overflow:auto;background:#0b1626;position:sticky;top:0;z-index:5}
+button{border:0;border-radius:11px;padding:11px 14px;background:#192d4b;color:white;font-weight:700;white-space:nowrap}
+button.active,button.primary{background:#2563eb}
+main{max-width:950px;margin:auto;padding:14px}.page{display:none}.page.on{display:block}
+.card{background:#0e1a2b;border:1px solid #263953;border-radius:18px;padding:16px;margin-bottom:14px}
+input,select{width:100%;padding:13px;margin:6px 0 10px;border-radius:11px;border:1px solid #30445f;background:#091322;color:white;font-size:15px}
+.grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}.three{grid-template-columns:repeat(3,1fr)}
+.item{padding:12px;border:1px solid #29405e;border-radius:12px;margin-top:8px}.eq{padding:16px;background:#091322;border-radius:13px;text-align:center;font-size:19px;font-weight:bold;overflow:auto}
+#viewer{height:380px;background:#02060b;border-radius:14px;margin-top:12px}.tag{display:inline-block;background:#172b49;padding:6px 9px;border-radius:99px;margin:3px;font-size:12px}
+table{width:100%;border-collapse:collapse}td,th{padding:8px;border-bottom:1px solid #263953;text-align:left;font-size:13px}
+.history button{margin:3px}.danger{background:#7f1d1d}
+@media(max-width:600px){.grid,.three{grid-template-columns:1fr 1fr}#viewer{height:320px}}
+</style>
+<script src="https://3Dmol.org/build/3Dmol-min.js"></script>
+</head>
+<body>
+<header><h1>🧪 ChemLab AI</h1><div>Interactive Chemistry Learning Laboratory</div></header>
+<nav id="nav">
+<button class="active" onclick="page('home',this)">Home</button>
+<button onclick="page('molecules',this)">3D Molecules</button>
+<button onclick="page('reaction',this)">Reaction Lab</button>
+<button onclick="page('periodic',this)">Periodic</button>
+<button onclick="page('alloys',this)">Alloys</button>
+<button onclick="page('history',this)">History</button>
+</nav>
+<main>
+
+<section id="home" class="page on">
+<div class="card"><h2>🔎 Universal Compound Search</h2>
+<input id="homeQ" placeholder="water, caffeine, glucose, ethanol...">
+<button class="primary" onclick="homeSearch()">Search compound</button>
+<div id="homeResult"></div></div>
+<div class="card"><h2>⚡ Quick examples</h2>
+<button onclick="quick('water')">Water</button><button onclick="quick('caffeine')">Caffeine</button><button onclick="quick('glucose')">Glucose</button><button onclick="quick('methane')">Methane</button>
+</div>
+<div class="card"><h2>✨ Modules</h2>
+<span class="tag">3D structure</span><span class="tag">Compound info</span><span class="tag">Reaction equations</span><span class="tag">Periodic table</span><span class="tag">Alloys</span><span class="tag">History</span></div>
+</section>
+
+<section id="molecules" class="page">
+<div class="card"><h2>🔬 3D Molecule Lab</h2>
+<input id="molQ" placeholder="Compound name or formula">
+<button class="primary" onclick="compoundSearch(molQ.value)">Search</button>
+<div id="molResult"></div><div id="viewer"></div><div id="molInfo" class="small"></div>
+</div></section>
+
+<section id="reaction" class="page">
+<div class="card"><h2>⚗️ Reaction Simulator</h2>
+<div class="grid"><div><label>Reactant A</label><select id="ra"></select></div><div><label>Reactant B</label><select id="rb"></select></div></div>
+<button class="primary" onclick="simulate()">▶ Simulate reaction</button>
+<div id="reactionOut"></div>
+<p class="small">This simulator uses a curated educational reaction database. It does not claim that every arbitrary pair of substances reacts.</p>
+</div>
+<div class="card"><h2>🧮 Equation balancer</h2><input id="eqIn" placeholder="Example: H2 + O2 -> H2O"><button onclick="balance()">Balance</button><div id="eqOut"></div><p class="small">The current version includes common classroom equations and simple pattern matching.</p></div>
+</section>
+
+<section id="periodic" class="page">
+<div class="card"><h2>🧩 Periodic Table</h2><input id="pSearch" placeholder="Search element or symbol" oninput="renderPeriodic()"><div id="periodicList" class="grid"></div></div>
+</section>
+
+<section id="alloys" class="page">
+<div class="card"><h2>🔩 Alloy Explorer</h2><input id="aSearch" placeholder="Search alloy or metal" oninput="renderAlloys()"><div id="alloyList"></div></div>
+</section>
+
+<section id="history" class="page">
+<div class="card"><h2>🕘 Search History</h2><div id="historyList"></div><button class="danger" onclick="clearHistory()">Clear history</button></div>
+</section>
+</main>
+
+<script>
+const reactions=[
+["Iron","Copper(II) sulfate","Fe + CuSO₄ → FeSO₄ + Cu","Single displacement / redox","Copper deposits; solution changes from blue toward green."],
+["Zinc","Hydrochloric acid","Zn + 2HCl → ZnCl₂ + H₂","Single displacement","Hydrogen gas is produced."],
+["Magnesium","Hydrochloric acid","Mg + 2HCl → MgCl₂ + H₂","Single displacement","Hydrogen gas is produced."],
+["Copper","Silver nitrate","Cu + 2AgNO₃ → Cu(NO₃)₂ + 2Ag","Single displacement","Silver forms and the solution changes."],
+["Calcium carbonate","Hydrochloric acid","CaCO₃ + 2HCl → CaCl₂ + H₂O + CO₂","Acid + carbonate","Carbon dioxide is produced."],
+["Sodium hydroxide","Hydrochloric acid","NaOH + HCl → NaCl + H₂O","Neutralization","Acid and base form salt and water."],
+["Silver nitrate","Sodium chloride","AgNO₃ + NaCl → AgCl + NaNO₃","Precipitation","A white silver chloride precipitate forms."]
+];
+const elements=[
+["H","Hydrogen",1,1.008],["He","Helium",2,4.003],["Li","Lithium",3,6.94],["Be","Beryllium",4,9.012],["B","Boron",5,10.81],["C","Carbon",6,12.011],["N","Nitrogen",7,14.007],["O","Oxygen",8,15.999],["F","Fluorine",9,18.998],["Ne","Neon",10,20.180],
+["Na","Sodium",11,22.990],["Mg","Magnesium",12,24.305],["Al","Aluminium",13,26.982],["Si","Silicon",14,28.085],["P","Phosphorus",15,30.974],["S","Sulfur",16,32.06],["Cl","Chlorine",17,35.45],["Ar","Argon",18,39.948],
+["K","Potassium",19,39.098],["Ca","Calcium",20,40.078],["Sc","Scandium",21,44.956],["Ti","Titanium",22,47.867],["V","Vanadium",23,50.942],["Cr","Chromium",24,51.996],["Mn","Manganese",25,54.938],["Fe","Iron",26,55.845],["Co","Cobalt",27,58.933],["Ni","Nickel",28,58.693],["Cu","Copper",29,63.546],["Zn","Zinc",30,65.38],
+["Ga","Gallium",31,69.723],["Ge","Germanium",32,72.630],["As","Arsenic",33,74.922],["Se","Selenium",34,78.971],["Br","Bromine",35,79.904],["Kr","Krypton",36,83.798],["Rb","Rubidium",37,85.468],["Sr","Strontium",38,87.62],["Y","Yttrium",39,88.906],["Zr","Zirconium",40,91.224],
+["Nb","Niobium",41,92.906],["Mo","Molybdenum",42,95.95],["Tc","Technetium",43,98],["Ru","Ruthenium",44,101.07],["Rh","Rhodium",45,102.906],["Pd","Palladium",46,106.42],["Ag","Silver",47,107.868],["Cd","Cadmium",48,112.414],["In","Indium",49,114.818],["Sn","Tin",50,118.710],["Sb","Antimony",51,121.760],["Te","Tellurium",52,127.60],["I","Iodine",53,126.904],["Xe","Xenon",54,131.293],
+["Cs","Cesium",55,132.905],["Ba","Barium",56,137.327],["La","Lanthanum",57,138.905],["Ce","Cerium",58,140.116],["Pr","Praseodymium",59,140.908],["Nd","Neodymium",60,144.242],["Sm","Samarium",62,150.36],["Eu","Europium",63,151.964],["Gd","Gadolinium",64,157.25],["Tb","Terbium",65,158.925],["Dy","Dysprosium",66,162.500],["Ho","Holmium",67,164.930],["Er","Erbium",68,167.259],["Tm","Thulium",69,168.934],["Yb","Ytterbium",70,173.045],["Lu","Lutetium",71,174.967],
+["Hf","Hafnium",72,178.49],["Ta","Tantalum",73,180.948],["W","Tungsten",74,183.84],["Re","Rhenium",75,186.207],["Os","Osmium",76,190.23],["Ir","Iridium",77,192.217],["Pt","Platinum",78,195.084],["Au","Gold",79,196.967],["Hg","Mercury",80,200.592],["Tl","Thallium",81,204.38],["Pb","Lead",82,207.2],["Bi","Bismuth",83,208.980]
+];
+const alloys=[
+["Steel","Iron + carbon","Construction, tools, machinery"],["Stainless steel","Iron + chromium + other alloying elements","Corrosion resistance"],["Brass","Copper + zinc","Fittings, instruments, decorative parts"],["Bronze","Copper + tin","Bearings and sculptures"],["Duralumin","Aluminium + copper + magnesium + manganese","Lightweight engineering"],["Nichrome","Nickel + chromium","Resistance wire"],["Cupronickel","Copper + nickel","Marine applications"],["Solder","Tin-based alloy","Electronics joining"]
+];
+function page(id,b){document.querySelectorAll(".page").forEach(x=>x.classList.remove("on"));document.getElementById(id).classList.add("on");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));b.classList.add("active")}
+function quick(x){homeQ.value=x;homeSearch()}
+function homeSearch(){compoundSearch(homeQ.value)}
+async function compoundSearch(name){
+name=(name||"").trim();if(!name)return;
+molQ.value=name;document.getElementById("molResult").innerHTML="<p>Searching PubChem…</p>";
+document.getElementById("homeResult").innerHTML="<p>Searching…</p>";
+try{
+let r=await fetch("https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/name/"+encodeURIComponent(name)+"/property/Title,MolecularFormula,MolecularWeight,CanonicalSMILES/JSON");
+if(!r.ok)throw 0;let p=(await r.json()).PropertyTable.Properties[0];
+let card=`<div class="item"><b>${p.Title}</b><br>Formula: ${p.MolecularFormula||"—"}<br>MW: ${p.MolecularWeight||"—"}<br><span class="small">PubChem CID: ${p.CID}</span></div>`;
+molResult.innerHTML=card;homeResult.innerHTML=card;
+saveHistory(p.Title);
+document.querySelectorAll(".page").forEach(x=>x.classList.remove("on"));document.getElementById("molecules").classList.add("on");document.querySelectorAll("nav button").forEach(x=>x.classList.remove("active"));document.querySelectorAll("nav button")[1].classList.add("active");
+load3d(p.CID,p.Title,p.MolecularFormula||"");
+}catch(e){homeResult.innerHTML="<p>Compound not found. Try a common chemical name such as water, glucose or caffeine.</p>";molResult.innerHTML=homeResult.innerHTML}
+}
+async function load3d(cid,title,formula){
+molInfo.innerHTML=`<b>${title}</b> • ${formula} • PubChem CID ${cid}`;
+let viewer=$3Dmol.createViewer("viewer",{backgroundColor:"#02060b"});
+try{let r=await fetch(`https://pubchem.ncbi.nlm.nih.gov/rest/pug/compound/cid/${cid}/record/SDF?record_type=3d`);if(!r.ok)throw 0;let sdf=await r.text();viewer.addModel(sdf,"sdf");viewer.setStyle({},{sphere:{scale:.3},stick:{radius:.12}});viewer.zoomTo();viewer.spin("y",1);viewer.render()}catch(e){molInfo.innerHTML+="<br>3D conformer is unavailable for this compound."}
+}
+function simulate(){let x=reactions.find(x=>x[0]==ra.value&&x[1]==rb.value);reactionOut.innerHTML=x?`<div class="eq">${x[2]}</div><p><b>${x[3]}</b><br>${x[4]}</p>`:`<div class="eq">No verified reaction in the database for this pair.</div>`}
+function balance(){
+let s=eqIn.value.replace(/\s+/g," ").trim();const known={"H2 + O2 -> H2O":"2H₂ + O₂ → 2H₂O","Fe + O2 -> Fe2O3":"4Fe + 3O₂ → 2Fe₂O₃","N2 + H2 -> NH3":"N₂ + 3H₂ → 2NH₃","CH4 + O2 -> CO2 + H2O":"CH₄ + 2O₂ → CO₂ + 2H₂O","C3H8 + O2 -> CO2 + H2O":"C₃H₈ + 5O₂ → 3CO₂ + 4H₂O"};eqOut.innerHTML=known[s]?`<div class="eq">${known[s]}</div>`:`<p>Try one of the example equations shown in the placeholder.</p>`}
+function renderPeriodic(){let q=pSearch.value.toLowerCase();periodicList.innerHTML=elements.filter(e=>(e[0]+" "+e[1]).toLowerCase().includes(q)).map(e=>`<div class="item"><b style="font-size:20px">${e[0]}</b> ${e[1]}<br><span class="small">Atomic no. ${e[2]} • Atomic mass ${e[3]}</span></div>`).join("")}
+function renderAlloys(){let q=aSearch.value.toLowerCase();alloyList.innerHTML=alloys.filter(a=>a.join(" ").toLowerCase().includes(q)).map(a=>`<div class="item"><b>${a[0]}</b><br>${a[1]}<br><span class="small">${a[2]}</span></div>`).join("")}
+function saveHistory(x){let h=JSON.parse(localStorage.getItem("chemHistory")||"[]");h=[x,...h.filter(y=>y!==x)].slice(0,15);localStorage.setItem("chemHistory",JSON.stringify(h));renderHistory()}
+function renderHistory(){let h=JSON.parse(localStorage.getItem("chemHistory")||"[]");historyList.innerHTML=h.length?h.map(x=>`<button onclick="compoundSearch('${x.replaceAll("'","")}')">${x}</button>`).join(""):"<p class='small'>No searches yet.</p>"}
+function clearHistory(){localStorage.removeItem("chemHistory");renderHistory()}
+ra.innerHTML=[...new Set(reactions.map(x=>x[0]))].map(x=>`<option>${x}</option>`).join("");
+rb.innerHTML=[...new Set(reactions.map(x=>x[1]))].map(x=>`<option>${x}</option>`).join("");
+renderPeriodic();renderAlloys();renderHistory();
+</script>
+<script>if("serviceWorker" in navigator){window.addEventListener("load",()=>navigator.serviceWorker.register("sw.js").catch(()=>{}));}</script>
+</body></html>
